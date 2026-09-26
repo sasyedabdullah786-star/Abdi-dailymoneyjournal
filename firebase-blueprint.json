@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile document",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 150 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string" },
+        "lastLogin": { "type": "string" }
+      },
+      "required": ["id", "email"]
+    },
+    "MoneyEntry": {
+      "title": "MoneyEntry",
+      "description": "Daily money income or expense entry belonging to a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string", "maxLength": 300 },
+        "category": { "type": "string", "maxLength": 50 },
+        "date": { "type": "string", "maxLength": 20 },
+        "time": { "type": "string", "maxLength": 20 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "type", "amount", "description", "category", "date"]
+    },
+    "PendingItem": {
+      "title": "PendingItem",
+      "description": "Pending money receivable or debt belonging to a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["receive", "pay"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "type", "amount", "description"]
+    },
+    "NoteItem": {
+      "title": "NoteItem",
+      "description": "Smart financial note document for a user",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string", "maxLength": 10000 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["content"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application configuration and current APK release pointers",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string", "maxLength": 100 },
+        "currentVersion": { "type": "string", "maxLength": 30 },
+        "apkUrl": { "type": "string", "maxLength": 1000 },
+        "apkSize": { "type": "string", "maxLength": 50 },
+        "releaseDate": { "type": "string", "maxLength": 50 },
+        "apkAvailable": { "type": "boolean" },
+        "totalDownloads": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "WebsiteSettings": {
+      "title": "WebsiteSettings",
+      "description": "Website copy and announcement banner settings",
+      "type": "object",
+      "properties": {
+        "announcementText": { "type": "string", "maxLength": 300 },
+        "announcementActive": { "type": "boolean" },
+        "supportEmail": { "type": "string", "maxLength": 120 },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Release": {
+      "title": "Release",
+      "description": "APK release record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "version": { "type": "string", "maxLength": 30 },
+        "releaseDate": { "type": "string", "maxLength": 50 },
+        "apkSize": { "type": "string", "maxLength": 50 },
+        "apkUrl": { "type": "string", "maxLength": 1000 },
+        "isCurrent": { "type": "boolean" },
+        "changelog": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents"
+    },
+    "/users/{userId}/entries/{entryId}": {
+      "schema": "MoneyEntry",
+      "description": "User money entries subcollection"
+    },
+    "/users/{userId}/pending/{pendingId}": {
+      "schema": "PendingItem",
+      "description": "User pending money subcollection"
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": "NoteItem",
+      "description": "User smart notes subcollection"
+    },
+    "/appSettings/{settingId}": {
+      "schema": "AppSettings",
+      "description": "Global app settings document"
+    },
+    "/websiteSettings/{settingId}": {
+      "schema": "WebsiteSettings",
+      "description": "Website banner and support info"
+    },
+    "/releases/{releaseId}": {
+      "schema": "Release",
+      "description": "APK release history"
+    },
+    "/admins/{adminId}": {
+      "schema": "UserProfile",
+      "description": "Admins whitelist"
+    }
+  }
+}

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" class="h-full bg-[#f3f5f9] text-slate-800">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <title>Daily Money Journal - Official Android APK &amp; Web App</title>
+    <meta name="description" content="Download the official Android APK for Daily Money Journal. Track daily income, expenses, pending money, and financial notes with offline support and cloud sync." />
+    
+    <!-- OpenGraph / Social Meta Tags -->
+    <meta property="og:title" content="Daily Money Journal - Official Android APK &amp; Web App" />
+    <meta property="og:description" content="Download the official Android APK for Daily Money Journal. Track daily income, expenses, pending money, and financial notes with offline support and cloud sync." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo.png" />
+    
+    <!-- Twitter Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Daily Money Journal - Official Android APK &amp; Web App" />
+    <meta name="twitter:description" content="Download the official Android APK for Daily Money Journal. Track daily income, expenses, pending money, and financial notes with offline support and cloud sync." />
+    <meta name="twitter:image" content="/logo.png" />
+
+    <!-- PWA & Mobile Web Capabilities -->
+    <meta name="theme-color" content="#111827" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="JENERAL APP" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+
+    <!-- Web App Manifest for Direct Chrome Installation -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Google Fonts for crisp human financial UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- PWA Install Prompt Capture and Service Worker Registration -->
+    <script>
+      (function() {
+        window.__pwaDeferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', function(e) {
+          e.preventDefault();
+          window.__pwaDeferredPrompt = e;
+          window.dispatchEvent(new CustomEvent('pwa-ready'));
+        });
+
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js').catch(function(err) {
+              console.log('SW registration note:', err);
+            });
+          });
+        }
+
+        window.addEventListener('unhandledrejection', function(e) {
+          if (e && e.reason && typeof e.reason.message === 'string' && e.reason.message.includes("reading 'send'")) {
+            e.preventDefault();
+          }
+        });
+        window.addEventListener('error', function(e) {
+          if (e && typeof e.message === 'string' && e.message.includes("reading 'send'")) {
+            e.preventDefault();
+          }
+        });
+      })();
+    </script>
+  </head>
+  <body class="min-h-full font-sans antialiased bg-[#f3f5f9] text-slate-800 selection:bg-slate-900 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

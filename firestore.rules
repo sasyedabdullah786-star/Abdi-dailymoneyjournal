@@ -1,0 +1,82 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 's.asyedabdullah786@gmail.com')
+      );
+    }
+
+    // Connection test collection
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Money Entries Collection (Strong Firebase Database)
+    match /entries/{entryId} {
+      allow read, write: if true;
+    }
+
+    // Pending Money Collection
+    match /pending/{pendingId} {
+      allow read, write: if true;
+    }
+
+    // Smart Notes Collection
+    match /notes/{noteId} {
+      allow read, write: if true;
+    }
+
+    // Mustang Goals Collection
+    match /mustang/{goalId} {
+      allow read, write: if true;
+    }
+
+    // App Settings (Public read, admin/system write)
+    match /appSettings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Website Settings
+    match /websiteSettings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // APK Releases
+    match /releases/{releaseId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Download Logs
+    match /downloadLogs/{logId} {
+      allow read, write: if true;
+    }
+
+    // User Profiles & Private Financial Spaces (Enforce Data Protection)
+    match /users/{userId} {
+      allow read, write: if (isSignedIn() && (request.auth.uid == userId || isAdmin()))
+                        || (!isSignedIn() && userId.matches('^user_.*'));
+
+      match /{subcollection=**} {
+        allow read, write: if (isSignedIn() && (request.auth.uid == userId || isAdmin()))
+                          || (!isSignedIn() && userId.matches('^user_.*'));
+      }
+    }
+
+    // Admins Whitelist
+    match /admins/{adminId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Daily Money Journal - Official Android APK & Web App",
+  "description": "Download the official Android APK for Daily Money Journal. Track daily income, expenses, pending money, and financial notes with offline support and cloud sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

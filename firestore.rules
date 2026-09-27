@@ -51,6 +51,12 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Ad and Monetization Settings
+    match /adSettings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // APK Releases
     match /releases/{releaseId} {
       allow read: if true;

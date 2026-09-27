@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Mail, ArrowLeft, Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, ArrowLeft, Send, CheckCircle2, AlertCircle, Loader2, Info } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getFriendlyAuthErrorMessage } from '../../lib/firebaseErrors';
+import { FirebaseVercelHelperModal } from '../../components/common/FirebaseVercelHelperModal';
 
 interface Props {
   onNavigate: (view: string) => void;
@@ -12,6 +14,7 @@ export const ForgotPasswordPage: React.FC<Props> = ({ onNavigate }) => {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,18 +26,25 @@ export const ForgotPasswordPage: React.FC<Props> = ({ onNavigate }) => {
       setSubmitted(true);
     } catch (err: unknown) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'Failed to send reset email');
+      const friendlyMsg = getFriendlyAuthErrorMessage(err, 'reset-password');
+      setError(friendlyMsg);
     } finally {
       setLoading(false);
     }
   };
+
+  const isConfigError = error && (
+    error.includes('Firebase Console') || 
+    error.includes('not enabled') || 
+    error.includes('authorized')
+  );
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md p-8 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-6">
         <button
           onClick={() => onNavigate('login')}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Login</span>
@@ -48,25 +58,63 @@ export const ForgotPasswordPage: React.FC<Props> = ({ onNavigate }) => {
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-950/70 border border-red-800 text-xs text-red-200 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-            <span>{error}</span>
+          <div className="p-3.5 rounded-2xl bg-red-950/70 border border-red-800 text-xs text-red-200 space-y-2">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+              <span className="leading-relaxed">{error}</span>
+            </div>
+            {isConfigError && (
+              <button
+                type="button"
+                onClick={() => setShowSetupGuide(true)}
+                className="mt-1 w-full py-1.5 px-3 rounded-lg bg-red-900/60 hover:bg-red-800/80 text-amber-200 border border-red-700/60 text-[11px] font-bold text-center cursor-pointer transition"
+              >
+                View Firebase Setup Instructions &rarr;
+              </button>
+            )}
           </div>
         )}
 
         {submitted ? (
-          <div className="p-6 rounded-2xl bg-emerald-950/60 border border-emerald-500/30 text-center space-y-3">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-            <h4 className="text-sm font-bold text-white">Password Reset Link Sent</h4>
-            <p className="text-xs text-slate-300">
-              Check your inbox at <strong>{email}</strong> for instructions to reset your password.
-            </p>
-            <button
-              onClick={() => onNavigate('login')}
-              className="mt-3 w-full py-2.5 rounded-xl bg-slate-800 text-xs font-bold text-white"
-            >
-              Return to Login
-            </button>
+          <div className="p-6 rounded-2xl bg-slate-950 border border-emerald-500/30 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-white">Reset Email Dispatched</h4>
+              <p className="text-xs text-slate-300">
+                A password reset email was sent to <strong className="text-emerald-300">{email}</strong>.
+              </p>
+            </div>
+
+            {/* Email deliverability advice */}
+            <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-left text-xs text-amber-200/90 space-y-2">
+              <div className="flex items-center gap-1.5 font-bold text-amber-300 text-[11px]">
+                <Info className="w-3.5 h-3.5" />
+                <span>Important if you don't see the email:</span>
+              </div>
+              <ul className="space-y-1 text-[11px] text-slate-300 list-disc list-inside">
+                <li>Check your <strong className="text-white">Spam / Junk folder</strong> or Promotions tab.</li>
+                <li>The email sender is <code className="text-amber-300 font-mono">noreply@mega-task-cxctm.firebaseapp.com</code>.</li>
+                <li>Make sure this account was already registered in the system.</li>
+              </ul>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                onClick={() => onNavigate('login')}
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition cursor-pointer"
+              >
+                Return to Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubmitted(false)}
+                className="text-[11px] text-slate-400 hover:text-white py-1"
+              >
+                Try a different email address
+              </button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -103,7 +151,23 @@ export const ForgotPasswordPage: React.FC<Props> = ({ onNavigate }) => {
             </button>
           </form>
         )}
+
+        <div className="pt-2 border-t border-slate-800 text-center">
+          <button
+            type="button"
+            onClick={() => setShowSetupGuide(true)}
+            className="text-[11px] text-slate-400 hover:text-emerald-400 transition cursor-pointer underline underline-offset-4"
+          >
+            Firebase configuration checklist &rarr;
+          </button>
+        </div>
       </div>
+
+      <FirebaseVercelHelperModal
+        isOpen={showSetupGuide}
+        onClose={() => setShowSetupGuide(false)}
+        initialReason="password-reset"
+      />
     </div>
   );
 };

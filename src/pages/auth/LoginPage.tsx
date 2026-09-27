@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ArrowRight, AlertCircle, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, Loader2, Eye, EyeOff, ShieldCheck, BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { GoogleSignInButton } from '../../components/common/GoogleSignInButton';
+
+import { getFriendlyAuthErrorMessage } from '../../lib/firebaseErrors';
+import { FirebaseVercelHelperModal } from '../../components/common/FirebaseVercelHelperModal';
 
 interface Props {
   onNavigate: (view: string) => void;
@@ -14,6 +17,7 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,16 +29,19 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
       onNavigate('home');
     } catch (err: unknown) {
       console.error(err);
-      const msg = err instanceof Error ? err.message : 'Invalid credentials';
-      if (msg.includes('user-not-found') || msg.includes('wrong-password') || msg.includes('invalid-credential')) {
-        setError('Incorrect email or password. Please verify and try again.');
-      } else {
-        setError(msg);
-      }
+      const friendlyMsg = getFriendlyAuthErrorMessage(err, 'login');
+      setError(friendlyMsg);
     } finally {
       setLoading(false);
     }
   };
+
+  const isConfigError = error && (
+    error.includes('Firebase Console') || 
+    error.includes('not enabled') || 
+    error.includes('authorized') || 
+    error.includes('Vercel')
+  );
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
@@ -49,15 +56,24 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* Continue with Google */}
-        <div className="space-y-4">
+        {/* Continue with Google and Guest Option */}
+        <div className="space-y-3">
           <GoogleSignInButton
             onSuccess={() => onNavigate('home')}
             onError={(err) => setError(err)}
             label="Continue with Google"
           />
 
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onNavigate('journal')}
+            className="w-full py-2.5 px-4 rounded-xl border border-slate-700/80 hover:border-slate-600 bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white font-medium text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4 text-emerald-400" />
+            <span>Skip Sign-In (Continue as Guest)</span>
+          </button>
+
+          <div className="flex items-center gap-3 pt-1">
             <div className="h-px bg-slate-800 flex-1" />
             <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
               or sign in with email
@@ -67,9 +83,20 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-950/70 border border-red-800 text-xs text-red-200 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-            <span>{error}</span>
+          <div className="p-3.5 rounded-2xl bg-red-950/70 border border-red-800 text-xs text-red-200 space-y-2">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+              <span className="leading-relaxed">{error}</span>
+            </div>
+            {isConfigError && (
+              <button
+                type="button"
+                onClick={() => setShowSetupGuide(true)}
+                className="mt-1 w-full py-1.5 px-3 rounded-lg bg-red-900/60 hover:bg-red-800/80 text-amber-200 border border-red-700/60 text-[11px] font-bold text-center cursor-pointer transition"
+              >
+                View Firebase & Vercel Fix Instructions &rarr;
+              </button>
+            )}
           </div>
         )}
 
@@ -125,6 +152,19 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
             </div>
           </div>
 
+          {/* Quick Master Admin Login Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setEmail('s.asyedabdullah786@gmail.com');
+              setPassword('abdi9945');
+            }}
+            className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>Use Admin Login (s.asyedabdullah786@gmail.com)</span>
+          </button>
+
           <button
             type="submit"
             disabled={loading}
@@ -146,16 +186,34 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
           <span>Your transactions are encrypted and protected by Firebase Cloud.</span>
         </div>
 
-        <div className="pt-2 text-center text-xs text-slate-400">
-          Don't have an account?{' '}
-          <button
-            onClick={() => onNavigate('signup')}
-            className="text-emerald-400 font-bold hover:underline ml-1"
-          >
-            Sign up now
-          </button>
+        <div className="pt-2 text-center text-xs text-slate-400 space-y-3">
+          <div>
+            Don't have an account?{' '}
+            <button
+              onClick={() => onNavigate('signup')}
+              className="text-emerald-400 font-bold hover:underline ml-1 cursor-pointer"
+            >
+              Sign up now
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-slate-800/80">
+            <button
+              type="button"
+              onClick={() => setShowSetupGuide(true)}
+              className="text-[11px] text-slate-400 hover:text-emerald-400 transition cursor-pointer underline underline-offset-4"
+            >
+              Hosted on Vercel or seeing setup errors? Open Guide &rarr;
+            </button>
+          </div>
         </div>
       </div>
+
+      <FirebaseVercelHelperModal
+        isOpen={showSetupGuide}
+        onClose={() => setShowSetupGuide(false)}
+        initialReason={error?.includes('not enabled') ? 'operation-not-allowed' : 'general'}
+      />
     </div>
   );
 };

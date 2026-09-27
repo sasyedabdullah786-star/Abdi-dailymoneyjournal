@@ -38,6 +38,25 @@
     <!-- PWA Install Prompt Capture and Service Worker Registration -->
     <script>
       (function() {
+        // Suppress benign Vite WebSocket / HMR disconnect errors in iframe preview
+        const _origError = console.error;
+        console.error = function(...args) {
+          const msg = args.map(String).join(' ');
+          if (msg.includes("reading 'send'") || msg.includes('[vite] failed to connect') || msg.includes('WebSocket closed')) {
+            return;
+          }
+          _origError.apply(console, args);
+        };
+
+        const _origWarn = console.warn;
+        console.warn = function(...args) {
+          const msg = args.map(String).join(' ');
+          if (msg.includes("reading 'send'") || msg.includes('WebSocket')) {
+            return;
+          }
+          _origWarn.apply(console, args);
+        };
+
         window.__pwaDeferredPrompt = null;
         window.addEventListener('beforeinstallprompt', function(e) {
           e.preventDefault();
@@ -54,12 +73,12 @@
         }
 
         window.addEventListener('unhandledrejection', function(e) {
-          if (e && e.reason && typeof e.reason.message === 'string' && e.reason.message.includes("reading 'send'")) {
+          if (e && e.reason && typeof e.reason.message === 'string' && (e.reason.message.includes("reading 'send'") || e.reason.message.includes("send"))) {
             e.preventDefault();
           }
         });
         window.addEventListener('error', function(e) {
-          if (e && typeof e.message === 'string' && e.message.includes("reading 'send'")) {
+          if (e && typeof e.message === 'string' && (e.message.includes("reading 'send'") || e.message.includes("send"))) {
             e.preventDefault();
           }
         });

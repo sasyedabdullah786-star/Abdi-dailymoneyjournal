@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, ArrowRight, AlertCircle, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, AlertCircle, Loader2, Eye, EyeOff, ShieldCheck, BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { GoogleSignInButton } from '../../components/common/GoogleSignInButton';
+
+import { getFriendlyAuthErrorMessage } from '../../lib/firebaseErrors';
+import { FirebaseVercelHelperModal } from '../../components/common/FirebaseVercelHelperModal';
 
 interface Props {
   onNavigate: (view: string) => void;
@@ -16,6 +19,7 @@ export const SignupPage: React.FC<Props> = ({ onNavigate }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,12 +41,8 @@ export const SignupPage: React.FC<Props> = ({ onNavigate }) => {
       onNavigate('home');
     } catch (err: unknown) {
       console.error(err);
-      const msg = err instanceof Error ? err.message : 'Registration failed';
-      if (msg.includes('email-already-in-use')) {
-        setError('An account with this email address already exists. Please log in.');
-      } else {
-        setError(msg);
-      }
+      const friendlyMsg = getFriendlyAuthErrorMessage(err, 'signup');
+      setError(friendlyMsg);
     } finally {
       setLoading(false);
     }
@@ -61,15 +61,24 @@ export const SignupPage: React.FC<Props> = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* Continue with Google */}
-        <div className="space-y-4">
+        {/* Continue with Google and Guest Option */}
+        <div className="space-y-3">
           <GoogleSignInButton
             onSuccess={() => onNavigate('home')}
             onError={(err) => setError(err)}
             label="Sign up with Google"
           />
 
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onNavigate('journal')}
+            className="w-full py-2.5 px-4 rounded-xl border border-slate-700/80 hover:border-slate-600 bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white font-medium text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4 text-emerald-400" />
+            <span>Skip Sign-Up (Use Journal Directly as Guest)</span>
+          </button>
+
+          <div className="flex items-center gap-3 pt-1">
             <div className="h-px bg-slate-800 flex-1" />
             <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
               or register with email
@@ -183,16 +192,34 @@ export const SignupPage: React.FC<Props> = ({ onNavigate }) => {
           <span>Your transactions are stored in an isolated, private database space.</span>
         </div>
 
-        <div className="pt-2 text-center text-xs text-slate-400">
-          Already registered?{' '}
-          <button
-            onClick={() => onNavigate('login')}
-            className="text-emerald-400 font-bold hover:underline ml-1"
-          >
-            Log in instead
-          </button>
+        <div className="pt-2 text-center text-xs text-slate-400 space-y-3">
+          <div>
+            Already registered?{' '}
+            <button
+              onClick={() => onNavigate('login')}
+              className="text-emerald-400 font-bold hover:underline ml-1 cursor-pointer"
+            >
+              Log in instead
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-slate-800/80">
+            <button
+              type="button"
+              onClick={() => setShowSetupGuide(true)}
+              className="text-[11px] text-slate-400 hover:text-emerald-400 transition cursor-pointer underline underline-offset-4"
+            >
+              Hosted on Vercel or seeing setup errors? Open Guide &rarr;
+            </button>
+          </div>
         </div>
       </div>
+
+      <FirebaseVercelHelperModal
+        isOpen={showSetupGuide}
+        onClose={() => setShowSetupGuide(false)}
+        initialReason={error?.includes('not enabled') ? 'operation-not-allowed' : 'general'}
+      />
     </div>
   );
 };

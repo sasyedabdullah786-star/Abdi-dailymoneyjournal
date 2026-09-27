@@ -6,6 +6,9 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
+import { Navbar } from './components/layout/Navbar';
+import { Footer } from './components/layout/Footer';
+import { HomePage } from './pages/HomePage';
 import { JournalPage } from './pages/JournalPage';
 import { ReleasesPage } from './pages/ReleasesPage';
 import { SupportPage } from './pages/SupportPage';
@@ -28,8 +31,8 @@ import {
 import { getReleases, DEFAULT_RELEASES } from './services/releaseService';
 
 export default function App() {
-  // Default to journal/home
-  const [currentView, setCurrentView] = useState<string>('home');
+  // Views: 'journal' (direct money app) | 'home' | 'releases' | 'support' | 'login' | 'signup' | 'admin'
+  const [currentView, setCurrentView] = useState<string>('journal');
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [websiteSettings, setWebsiteSettings] = useState<WebsiteSettings>(DEFAULT_WEBSITE_SETTINGS);
   const [releases, setReleases] = useState<Release[]>(DEFAULT_RELEASES);
@@ -38,9 +41,12 @@ export default function App() {
   // Sync route with URL pathname or hash
   useEffect(() => {
     const handleLocationChange = () => {
-      const path =
-        window.location.pathname.replace(/^\//, '') ||
-        window.location.hash.replace(/^#/, '');
+      const rawPath =
+        window.location.hash.replace(/^#/, '') ||
+        window.location.pathname.replace(/^\//, '');
+
+      const normalized = rawPath === 'app' ? 'journal' : rawPath;
+
       if (
         [
           'home',
@@ -52,22 +58,27 @@ export default function App() {
           'forgot-password',
           'profile',
           'admin',
-        ].includes(path)
+        ].includes(normalized)
       ) {
-        setCurrentView(path);
+        setCurrentView(normalized);
       } else {
-        setCurrentView('home');
+        setCurrentView('journal');
       }
     };
 
     handleLocationChange();
     window.addEventListener('popstate', handleLocationChange);
-    return () => window.removeEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
   }, []);
 
   const navigateTo = (view: string) => {
-    setCurrentView(view);
-    window.history.pushState(null, '', view === 'home' ? '/' : `/${view}`);
+    const target = view === 'app' ? 'journal' : view;
+    setCurrentView(target);
+    window.location.hash = target === 'home' ? '' : `#${target}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -92,63 +103,197 @@ export default function App() {
     loadData();
   }, []);
 
+  const currentRelease =
+    releases.find((r) => r.isCurrent) || releases[0] || DEFAULT_RELEASES[0];
+
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-[#f3f5f9] text-slate-800">
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
         <OfflineIndicator />
 
-        {/* Primary View: When home or journal, load the Daily Money Journal directly */}
-        {(currentView === 'home' || currentView === 'journal') && (
-          <JournalPage
-            appSettings={appSettings}
-            onOpenAdmin={() => navigateTo('admin')}
-          />
+        {/* 1. MARKETING LANDING PAGE: Visitors see this first with APK Download, PWA install, and Open Web App CTA */}
+        {currentView === 'home' && (
+          <>
+            <Navbar
+              currentView={currentView}
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+            <main className="flex-1">
+              <HomePage
+                appSettings={appSettings}
+                websiteSettings={websiteSettings}
+                currentRelease={currentRelease}
+                onNavigate={navigateTo}
+              />
+            </main>
+            <Footer
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+          </>
         )}
 
-        {/* Secondary Views (Accessible when specifically requested) */}
+        {/* 2. THE WEB JOURNAL APPLICATION: High-performance cloud ledger with bi-directional Firestore sync & receipt attachments */}
+        {currentView === 'journal' && (
+          <main className="flex-1 bg-[#f3f5f9] text-[#111827]">
+            <JournalPage
+              appSettings={appSettings}
+              onOpenAdmin={() => navigateTo('admin')}
+              onNavigateHome={() => navigateTo('home')}
+            />
+          </main>
+        )}
+
+        {/* 3. RELEASES & CHANGELOGS */}
         {currentView === 'releases' && (
-          <div className="max-w-2xl mx-auto p-4">
-            <button
-              onClick={() => navigateTo('home')}
-              className="mb-4 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
-            >
-              ← Back to Daily Money Journal
-            </button>
-            <ReleasesPage releases={releases} appName={appSettings.appName} />
-          </div>
+          <>
+            <Navbar
+              currentView={currentView}
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+            <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
+              <ReleasesPage releases={releases} appName={appSettings.appName} />
+            </main>
+            <Footer
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+          </>
         )}
 
+        {/* 4. SUPPORT & APK INSTALLATION HELP */}
         {currentView === 'support' && (
-          <div className="max-w-2xl mx-auto p-4">
-            <button
-              onClick={() => navigateTo('home')}
-              className="mb-4 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
-            >
-              ← Back to Daily Money Journal
-            </button>
-            <SupportPage />
-          </div>
+          <>
+            <Navbar
+              currentView={currentView}
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+            <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
+              <SupportPage />
+            </main>
+            <Footer
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+          </>
         )}
 
-        {currentView === 'login' && <LoginPage onNavigate={navigateTo} />}
+        {/* 5. AUTHENTICATION PAGES */}
+        {currentView === 'login' && (
+          <>
+            <Navbar
+              currentView={currentView}
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+            <main className="flex-1 flex items-center justify-center p-4">
+              <LoginPage onNavigate={navigateTo} />
+            </main>
+            <Footer
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+          </>
+        )}
 
-        {currentView === 'signup' && <SignupPage onNavigate={navigateTo} />}
+        {currentView === 'signup' && (
+          <>
+            <Navbar
+              currentView={currentView}
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+            <main className="flex-1 flex items-center justify-center p-4">
+              <SignupPage onNavigate={navigateTo} />
+            </main>
+            <Footer
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+          </>
+        )}
 
         {currentView === 'forgot-password' && (
-          <ForgotPasswordPage onNavigate={navigateTo} />
+          <>
+            <Navbar
+              currentView={currentView}
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+            <main className="flex-1 flex items-center justify-center p-4">
+              <ForgotPasswordPage onNavigate={navigateTo} />
+            </main>
+            <Footer
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+          </>
         )}
 
-        {currentView === 'profile' && <ProfilePage onNavigate={navigateTo} />}
+        {currentView === 'profile' && (
+          <>
+            <Navbar
+              currentView={currentView}
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+            <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
+              <ProfilePage onNavigate={navigateTo} />
+            </main>
+            <Footer
+              onNavigate={navigateTo}
+              appName={appSettings.appName}
+              version={appSettings.currentVersion}
+            />
+          </>
+        )}
 
+        {/* 6. RESTRICTED ADMIN PORTAL: Discreetly accessible via footer or #admin */}
         {currentView === 'admin' && (
           <div className="bg-slate-950 min-h-screen text-slate-100">
-            <div className="max-w-6xl mx-auto p-4">
-              <button
-                onClick={() => navigateTo('home')}
-                className="mb-4 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 cursor-pointer"
-              >
-                ← Return to Daily Money Journal
-              </button>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex items-center justify-between pb-6 mb-6 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
+                    ⚙
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-bold text-white">Administrator Management Portal</h1>
+                    <p className="text-xs text-slate-400">Strictly restricted to authorized administrative credentials</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigateTo('journal')}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-950 hover:bg-emerald-900 border border-emerald-800/80 text-emerald-300 text-xs font-bold transition cursor-pointer"
+                  >
+                    Open Web Journal →
+                  </button>
+                  <button
+                    onClick={() => navigateTo('home')}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                  >
+                    Public Website
+                  </button>
+                </div>
+              </div>
+
               <AdminPanel
                 appSettings={appSettings}
                 websiteSettings={websiteSettings}

@@ -19,7 +19,6 @@ export const PWAInstallButton: React.FC<Props> = ({ className = '', variant = 'b
   }
 
   const handleInstallClick = async () => {
-    // 1. If native prompt is available, trigger it
     try {
       const res = await triggerInstall();
       if (res.status === 'installed_native' || res.status === 'already_installed') {
@@ -27,20 +26,13 @@ export const PWAInstallButton: React.FC<Props> = ({ className = '', variant = 'b
         setTimeout(() => setInstallSuccess(false), 4000);
         return;
       }
-    } catch {
-      // Fallback to direct APK download
+      if (res.status === 'manual_guide_needed') {
+        setShowGuide(true);
+      }
+    } catch (err) {
+      console.warn('Install trigger error:', err);
+      setShowGuide(true);
     }
-
-    // 2. Direct download application to mobile
-    const a = document.createElement('a');
-    a.href = '/daily-money-journal.apk';
-    a.download = 'daily-money-journal.apk';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    setInstallSuccess(true);
-    setTimeout(() => setInstallSuccess(false), 4000);
   };
 
   if (installSuccess) {

@@ -113,6 +113,16 @@ export default defineConfig(() => {
           }
         },
       },
+      {
+        name: 'vite-client-send-guard',
+        transform(code, id) {
+          if (id.includes('vite/dist/client') || id.includes('/@vite/client')) {
+            return code
+              .replace(/ws\.send\(/g, 'ws?.send?.(')
+              .replace(/this\.transport\.send\(/g, 'this.transport?.send?.(');
+          }
+        },
+      },
     ],
     resolve: {
       alias: {
@@ -120,8 +130,7 @@ export default defineConfig(() => {
       },
     },
     server: {
-      hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      hmr: false,
     },
   };
 });

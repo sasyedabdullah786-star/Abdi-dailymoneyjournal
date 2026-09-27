@@ -25,6 +25,8 @@ export interface MoneyEntry {
   category: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm AM/PM
+  receiptUrl?: string;
+  receiptName?: string;
   createdAt: string;
 }
 
@@ -102,4 +104,21 @@ export interface Release {
   isCurrent: boolean;
   downloadCount: number;
   createdAt?: string;
+}
+
+export interface AdSettings {
+  enabled: boolean;
+  adNetwork: 'custom' | 'adsense' | 'admob';
+  adsensePublisherId?: string;
+  adsenseSlotId?: string;
+  customBanner: {
+    title: string;
+    description: string;
+    badgeText: string;
+    ctaText: string;
+    targetUrl: string;
+    imageUrl?: string;
+  };
+  showOnJournal: boolean;
+  showOnDownload: boolean;
 }

@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   Sparkles,
+  Smartphone,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { PWAInstallButton } from '../common/PWAInstallButton';

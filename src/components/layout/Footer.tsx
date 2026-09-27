@@ -107,9 +107,17 @@ export const Footer: React.FC<Props> = ({
             <span>•</span>
             <button
               onClick={() => onNavigate('support')}
-              className="hover:text-slate-300 transition-colors"
+              className="hover:text-slate-300 transition-colors cursor-pointer"
             >
               Contact Support
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => onNavigate('admin')}
+              className="hover:text-slate-400 text-slate-600 transition-colors cursor-pointer text-[10px]"
+              title="Administrator Management Console"
+            >
+              System Console
             </button>
           </div>
         </div>

@@ -11,6 +11,7 @@ import {
   Send,
   CheckCircle2,
 } from 'lucide-react';
+import { FirebaseVercelHelperModal } from '../components/common/FirebaseVercelHelperModal';
 
 const FAQS = [
   {
@@ -30,6 +31,10 @@ const FAQS = [
     a: 'You can create a free account in the app. When logged in, your entries automatically backup to your private encrypted cloud database in Firebase.',
   },
   {
+    q: 'Hosted on Vercel and seeing "auth/operation-not-allowed" or Google login blocked?',
+    a: 'In your Firebase Console (mega-task-cxctm): 1) Go to Authentication > Sign-in method and enable both Email/Password and Google. 2) Go to Authentication > Settings > Authorized domains and add your Vercel URL (e.g. your-app.vercel.app). Also check your Spam/Junk folder for password reset emails!',
+  },
+  {
     q: 'Does installing from the browser take up storage?',
     a: 'Because it installs as a lightweight Progressive Web App, it uses only a tiny fraction of storage compared to bloated traditional binaries, and it automatically stays up to date.',
   },
@@ -37,6 +42,7 @@ const FAQS = [
 
 export const SupportPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [showHelperModal, setShowHelperModal] = useState(false);
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactMsg, setContactMsg] = useState('');
@@ -95,8 +101,17 @@ export const SupportPage: React.FC = () => {
                 )}
               </button>
               {openFaq === idx && (
-                <div className="px-5 pb-5 pt-1 text-xs text-slate-300 leading-relaxed border-t border-slate-800/60">
-                  {faq.a}
+                <div className="px-5 pb-5 pt-1 text-xs text-slate-300 leading-relaxed border-t border-slate-800/60 space-y-2">
+                  <p>{faq.a}</p>
+                  {faq.q.includes('Vercel') && (
+                    <button
+                      type="button"
+                      onClick={() => setShowHelperModal(true)}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold cursor-pointer transition"
+                    >
+                      <span>Open Step-by-Step Firebase & Vercel Checklist &rarr;</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -211,6 +226,11 @@ export const SupportPage: React.FC = () => {
           </form>
         )}
       </div>
+
+      <FirebaseVercelHelperModal
+        isOpen={showHelperModal}
+        onClose={() => setShowHelperModal(false)}
+      />
     </div>
   );
 };

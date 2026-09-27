@@ -28,6 +28,8 @@ import {
   Mail,
   ShieldCheck,
   Check,
+  Camera,
+  Paperclip,
 } from 'lucide-react';
 import { MoneyEntry, PendingItem, AppSettings, WebsiteSettings } from '../types';
 import {
@@ -48,7 +50,9 @@ import { updateAppSettings, updateWebsiteSettings } from '../services/appSetting
 import { logDownloadEvent } from '../services/downloadService';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallGuideModal } from '../components/download/InstallGuideModal';
+import { DirectInstallBanner } from '../components/common/DirectInstallBanner';
 import { GoogleSignInButton } from '../components/common/GoogleSignInButton';
+import { AdBanner } from '../components/common/AdBanner';
 import { User as FirebaseUser } from 'firebase/auth';
 
 const CATEGORIES = [
@@ -66,18 +70,25 @@ const CATEGORIES = [
 interface JournalPageProps {
   appSettings: AppSettings;
   onOpenAdmin?: () => void;
+  onNavigateHome?: () => void;
 }
 
-export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
+export const JournalPage: React.FC<JournalPageProps> = ({
+  appSettings,
+  onOpenAdmin,
+  onNavigateHome,
+}) => {
   const { user, login, signup, loginWithGoogle, logout, resetPassword } = useAuth();
   const effectiveUserId = useMemo(() => getEffectiveUserId(user?.uid), [user]);
 
-  // Views: 'landing' | 'auth' | 'app' | 'admin'
-  const [view, setView] = useState<'landing' | 'auth' | 'app' | 'admin'>(() => {
-    // If user is already authenticated or has local user record, go to app; otherwise show landing
-    const savedUser = localStorage.getItem('dmj_user');
-    return (user || savedUser) ? 'app' : 'landing';
-  });
+  // Primary view: default directly to 'app' so visitors entering the journal get immediate access
+  const [view, setView] = useState<'app' | 'auth' | 'admin' | 'landing'>('app');
+
+  // Receipt attachment states
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [receiptName, setReceiptName] = useState<string | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<{ url: string; title: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // App internal sub-views: 'home' | 'history' | 'pending' | 'notes'
   const [appSection, setAppSection] = useState<'home' | 'history' | 'pending' | 'notes'>('home');
@@ -333,6 +344,54 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
     });
   }, [entries]);
 
+  // Handler: Attach Receipt Photo with client-side compression
+  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select an image file (JPG, PNG, WebP).');
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('File size must be under 8MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 800;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+          setReceiptImage(compressedDataUrl);
+          setReceiptName(file.name);
+          showToast('Bill/Receipt attached successfully!');
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handler: Save Journal Entry
   const handleSaveEntry = async () => {
     const amount = Number(amountInput);
@@ -362,6 +421,8 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
       category: categoryInput,
       date: todayKey,
       time: timeNow,
+      receiptUrl: receiptImage || undefined,
+      receiptName: receiptName || undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -369,6 +430,9 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
     setEntries((prev) => [newEntry, ...prev]);
     setAmountInput('');
     setDescriptionInput('');
+    setReceiptImage(null);
+    setReceiptName(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     showToast('Entry saved!');
 
     // Sync to Firestore if authenticated
@@ -931,22 +995,48 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
 
       {/* ---------------- 3. MAIN APP VIEW ---------------- */}
       {view === 'app' && (
-        <section className="app-container pt-5 pb-12 animate-fadeIn">
-          {/* Topbar */}
-          <div className="topbar-wrap relative">
-            <div className="flex items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="JENERAL APP"
-                className="w-10 h-10 rounded-xl object-contain bg-white shadow-sm border border-slate-200 p-0.5 shrink-0"
-              />
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">JENERAL APP</h2>
-                <p className="text-xs text-slate-500 font-medium">{todayFormatted} · Daily Money Journal</p>
+        <>
+          <DirectInstallBanner />
+          <section className="app-container pt-5 pb-12 animate-fadeIn">
+            {/* Topbar */}
+            <div className="topbar-wrap relative">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <img
+                  src="/logo.png"
+                  alt="JENERAL APP"
+                  className="w-10 h-10 rounded-xl object-contain bg-white shadow-sm border border-slate-200 p-0.5 shrink-0"
+                />
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">JENERAL APP</h2>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-500 font-medium">{todayFormatted} · Daily Money Journal</p>
+                    {user ? (
+                      <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <Cloud className="w-3 h-3 text-emerald-600" />
+                        Cloud Firestore
+                      </span>
+                    ) : (
+                      <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        <Database className="w-3 h-3 text-amber-600" />
+                        Device Storage
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                {!isInstalled && (
+                  <button
+                    onClick={handleDownloadApp}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer"
+                    title="Install directly to home screen via Chrome"
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Install App</span>
+                    <span className="sm:hidden">Install</span>
+                  </button>
+                )}
               {/* User Session & Protection Status */}
               {user ? (
                 <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800">
@@ -1008,13 +1098,25 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
                   )}
                 </div>
 
+                {onNavigateHome && (
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onNavigateHome();
+                    }}
+                    className="text-emerald-700 font-bold bg-emerald-50/70 border-b border-emerald-100"
+                  >
+                    ← Website & APK Downloads
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     setAppSection('home');
                     setIsMenuOpen(false);
                   }}
                 >
-                  ⌂ Home
+                  ⌂ Journal Dashboard
                 </button>
                 <button
                   onClick={() => {
@@ -1125,6 +1227,9 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
             </button>
           </div>
 
+          {/* Monetization / Sponsor Banner Placement */}
+          <AdBanner placement="journal" />
+
           {/* HOME SECTION */}
           {appSection === 'home' && (
             <>
@@ -1212,6 +1317,70 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
                   ))}
                 </select>
 
+                {/* Receipt Photo Attachment */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Attach Bill / Receipt Photo (Cloud Storage)</span>
+                    </span>
+                    {receiptImage && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReceiptImage(null);
+                          setReceiptName(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleReceiptFileChange}
+                    className="hidden"
+                    id="receipt-upload-input"
+                  />
+
+                  {receiptImage ? (
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <img
+                        src={receiptImage}
+                        alt="Receipt preview"
+                        className="w-12 h-12 rounded-lg object-cover border border-emerald-300 shrink-0 cursor-pointer"
+                        onClick={() => setViewingReceipt({ url: receiptImage, title: 'Receipt Preview' })}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-bold text-emerald-900 truncate block">
+                          {receiptName || 'Receipt Attached'}
+                        </span>
+                        <span className="text-[10px] text-emerald-700">Ready to save with transaction</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setViewingReceipt({ url: receiptImage, title: 'Receipt Preview' })}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold cursor-pointer transition"
+                      >
+                        Preview
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="receipt-upload-input"
+                      className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100 transition cursor-pointer text-xs font-semibold text-slate-600"
+                    >
+                      <Camera className="w-4 h-4 text-slate-500" />
+                      <span>Attach Photo of Bill / Receipt (Optional)</span>
+                    </label>
+                  )}
+                </div>
+
                 <button onClick={handleSaveEntry} className="dmj-primary-btn">
                   SAVE ENTRY
                 </button>
@@ -1233,7 +1402,19 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
                     todaysEntries.map((e) => (
                       <div key={e.id} className="entry-row">
                         <div>
-                          <strong className="text-slate-900 font-bold block">{e.description}</strong>
+                          <div className="flex items-center gap-2">
+                            <strong className="text-slate-900 font-bold block">{e.description}</strong>
+                            {e.receiptUrl && (
+                              <button
+                                onClick={() => setViewingReceipt({ url: e.receiptUrl!, title: `${e.description} - ₹${e.amount}` })}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer transition"
+                                title="View attached bill/receipt"
+                              >
+                                <Paperclip className="w-3 h-3" />
+                                <span>Bill</span>
+                              </button>
+                            )}
+                          </div>
                           <small>
                             {e.category} · {e.time}
                           </small>
@@ -1309,7 +1490,19 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
                       {group.entries.map((e) => (
                         <div key={e.id} className="py-2.5 flex justify-between items-center text-sm">
                           <div>
-                            <div className="font-semibold text-slate-900">{e.description}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-900">{e.description}</span>
+                              {e.receiptUrl && (
+                                <button
+                                  onClick={() => setViewingReceipt({ url: e.receiptUrl!, title: `${e.description} - ₹${e.amount}` })}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer transition"
+                                  title="View attached bill/receipt"
+                                >
+                                  <Paperclip className="w-3 h-3" />
+                                  <span>Bill</span>
+                                </button>
+                              )}
+                            </div>
                             <div className="text-xs text-slate-400">
                               {e.category} · {e.time}
                             </div>
@@ -1474,6 +1667,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
             </div>
           )}
         </section>
+        </>
       )}
 
       {/* ---------------- 4. ADMIN PANEL VIEW ---------------- */}
@@ -1768,6 +1962,52 @@ export const JournalPage: React.FC<JournalPageProps> = ({ appSettings }) => {
         appName={adminData.appName || 'Daily Money Journal'}
         platform={guidePlatform}
       />
+
+      {/* Receipt & Bill Image Viewer Modal */}
+      {viewingReceipt && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setViewingReceipt(null)}
+        >
+          <div
+            className="bg-slate-900 text-white rounded-3xl max-w-lg w-full overflow-hidden border border-slate-700 shadow-2xl space-y-4 p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-bold text-sm truncate">{viewingReceipt.title}</h3>
+              </div>
+              <button
+                onClick={() => setViewingReceipt(null)}
+                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="max-h-[65vh] overflow-auto flex items-center justify-center bg-black/40 rounded-2xl p-2 border border-slate-800">
+              <img
+                src={viewingReceipt.url}
+                alt="Full receipt"
+                className="max-h-[60vh] w-auto max-w-full rounded-xl object-contain shadow-lg"
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+              <span className="flex items-center gap-1.5 text-emerald-400">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Protected in Cloud Firestore</span>
+              </span>
+              <a
+                href={viewingReceipt.url}
+                download="transaction-bill.jpg"
+                className="text-blue-400 font-bold hover:underline"
+              >
+                Download Photo
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

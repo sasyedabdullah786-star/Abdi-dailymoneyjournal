@@ -15,6 +15,7 @@ export type InstallOutcome =
   | { status: 'installed_native'; outcome: 'accepted' }
   | { status: 'dismissed_native'; outcome: 'dismissed' }
   | { status: 'already_installed' }
+  | { status: 'iframe_blocked' }
   | { status: 'manual_guide_needed'; platform: 'android' | 'ios' | 'desktop' };
 
 export function usePWAInstall() {
@@ -24,9 +25,17 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Detect iframe
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch {
+      setIsInIframe(true);
+    }
 
     // Detect standalone display mode (already installed on home screen)
     const isStandalone =
@@ -87,6 +96,11 @@ export function usePWAInstall() {
       return { status: 'already_installed' };
     }
 
+    // Chrome explicitly disables beforeinstallprompt inside cross-origin iframes
+    if (isInIframe) {
+      return { status: 'iframe_blocked' };
+    }
+
     let promptEvent = deferredPrompt || window.__pwaDeferredPrompt;
 
     // If prompt is not immediately ready, wait briefly for Chrome to fire the event
@@ -129,13 +143,14 @@ export function usePWAInstall() {
     // Fallback if browser did not provide native prompt
     const platform = isIOS ? 'ios' : isAndroid ? 'android' : 'desktop';
     return { status: 'manual_guide_needed', platform };
-  }, [deferredPrompt, isInstalled, isIOS, isAndroid]);
+  }, [deferredPrompt, isInstalled, isIOS, isAndroid, isInIframe]);
 
   return {
     isInstallable: !!(deferredPrompt || window.__pwaDeferredPrompt),
     isInstalled,
     isIOS,
     isAndroid,
+    isInIframe,
     triggerInstall,
   };
 }

@@ -3,6 +3,8 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from 'firebase/auth';
 
+import { getFriendlyAuthErrorMessage } from '../../lib/firebaseErrors';
+
 interface GoogleSignInButtonProps {
   onSuccess?: (user: User) => void;
   onError?: (errorMessage: string) => void;
@@ -34,19 +36,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       }
     } catch (err: unknown) {
       console.warn('Google Sign-In caught error:', err);
-      let message = 'Unable to sign in with Google. Please try again.';
-      if (err && typeof err === 'object' && 'code' in err) {
-        const code = (err as { code: string }).code;
-        if (code === 'auth/popup-closed-by-user') {
-          message = 'Sign in was cancelled.';
-        } else if (code === 'auth/popup-blocked') {
-          message = 'Popup was blocked by your browser. Please allow popups for this site or use email sign-in.';
-        } else if (code === 'auth/cancelled-popup-request') {
-          message = 'Previous sign-in request cancelled.';
-        } else if (code === 'auth/network-request-failed') {
-          message = 'Network error. Please check your internet connection.';
-        }
-      }
+      const message = getFriendlyAuthErrorMessage(err, 'google');
       if (onError) {
         onError(message);
       }

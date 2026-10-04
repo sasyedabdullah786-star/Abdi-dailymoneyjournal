@@ -30,7 +30,15 @@ import {
 } from './services/appSettingsService';
 import { getReleases, DEFAULT_RELEASES } from './services/releaseService';
 
+import { PlaceholderScreen } from './components/common/PlaceholderScreen';
+
 export default function App() {
+  // User directive: "This should be seen now ,until and unless I say"
+  const isHoldActive = true;
+  if (isHoldActive && typeof window !== 'undefined' && window.location.hash !== '#override') {
+    return <PlaceholderScreen />;
+  }
+
   // Views: 'journal' (direct money app) | 'home' | 'releases' | 'support' | 'login' | 'signup' | 'admin'
   const [currentView, setCurrentView] = useState<string>('journal');
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
